@@ -27,8 +27,8 @@ use wallet::Wallet;
 use blockchain::Blockchain;
 
 async fn init() {
-    let (init_tx, mut init_rx) = tokio::sync::mpsc::unbounded_channel();
-    let (response_tx, mut response_rx) = mpsc::unbounded_channel();
+    let (init_tx, mut _init_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (response_tx, mut _response_rx) = mpsc::unbounded_channel();
     let auth_keys = Keypair::<X25519Spec>::new()
         .into_authentic(&p2p::KEYS)
         .expect("failed to create auth keys");
@@ -43,14 +43,22 @@ async fn init() {
         Blockchain::new(wallet),
         response_tx,
         init_tx.clone(),
-    )
-    .await;
+    ).await;
 
-    // let mut swarm = SwarmBuilder::new(transp, behaviour, *p2p::PEER_ID)
-    //     .executor(Box::new(|fut| {
-    //         spawn(fut);
-    //     }))
-    //     .build();
+    let mut swarm = SwarmBuilder::new(transp, behaviour, *p2p::PEER_ID)
+        .executor(Box::new(|fut| {
+            spawn(fut);
+        }))
+        .build();
+
+    Swarm::listen_on(
+        &mut swarm,
+        "/ip4/0.0.0.0/tcp/0".parse().expect("failed to get a local socket"),
+    ).expect("swarm cannot be started");
+
+    let peers = p2p::get_list_peers(&swarm);
+    println!("peers.len(): {}", peers.len());
+    info!("connected nodes: {}", peers.len());
 }
 
 // #[tokio::main] is a proc macro that essentially wraps the content of main() 
@@ -72,6 +80,8 @@ async fn main() {
     println!("Hello, world!");
     pretty_env_logger::init();
 
+    init().await;
+
     // tokio::spawn(async move {
     //     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     //     info!("sending init event");
@@ -82,13 +92,3 @@ async fn main() {
     //     println!("got = {}", res);
     // }
 }
-
-// pub fn get_list_peers(swarm: &Swarm<AppBehaviour>) -> Vec<String> {
-//     info!("Discovered Peers:");
-//     let nodes = swarm.behaviour().mdns.discovered_nodes();
-//     let mut unique_peers = HashSet::new();
-//     for peer in nodes {
-//         unique_peers.insert(peer);
-//     }
-//     unique_peers.iter().map(|p| p.to_string()).collect()
-// }

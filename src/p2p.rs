@@ -18,9 +18,7 @@ use tokio::sync::mpsc;
 pub static KEYS: Lazy<Keypair> = Lazy::new(Keypair::generate_ed25519);
 pub static PEER_ID: Lazy<PeerId> = Lazy::new(|| PeerId::from(KEYS.public()));
 
-
-
-pub fn get_list_peers(swarm: &Swarm<AppBehaviour>) -> Vec<String> {
+pub fn get_list_peers(swarm: &Swarm<AppNetworkBehavior>) -> Vec<String> {
     info!("Discovered Peers:");
     let nodes = swarm.behaviour().mdns.discovered_nodes();
     let mut unique_peers = HashSet::new();
@@ -30,7 +28,6 @@ pub fn get_list_peers(swarm: &Swarm<AppBehaviour>) -> Vec<String> {
     unique_peers.iter().map(|p| p.to_string()).collect()
 }
 
-
 // #[derive(Debug, Serialize, Deserialize)]
 pub struct ChainResponse {
     pub blocks: Vec<Block>,
@@ -39,9 +36,10 @@ pub struct ChainResponse {
 }
 
 #[derive(NetworkBehaviour)]
-pub struct AppBehaviour {
-    // pub floodsub: Floodsub,
-    pub mdns: Mdns,
+pub struct AppNetworkBehavior { // todo: rename AppNetworkBehaviour ?
+    // pub floodsub: Floodsub, // handles the Floodsub protocol
+    //                         // which is a message broadcast protocol
+    pub mdns: Mdns, // Automatically discovers peers on the local network
     // #[behaviour(ignore)]
     // pub response_sender: mpsc::UnboundedSender<ChainResponse>,
     // #[behaviour(ignore)]
@@ -50,7 +48,7 @@ pub struct AppBehaviour {
     // pub blockchain: Blockchain,
 }
 
-impl AppBehaviour {
+impl AppNetworkBehavior {
     pub async fn new(
         _blockchain: Blockchain,
         _response_sender: mpsc::UnboundedSender<ChainResponse>,
@@ -130,7 +128,7 @@ impl AppBehaviour {
 //     }
 // }
 
-impl NetworkBehaviourEventProcess<MdnsEvent> for AppBehaviour {
+impl NetworkBehaviourEventProcess<MdnsEvent> for AppNetworkBehavior {
     fn inject_event(&mut self, event: MdnsEvent) {
         // match event {
         //     MdnsEvent::Discovered(discovered_list) => {

@@ -39,7 +39,7 @@ async fn init() {
         .multiplex(mplex::MplexConfig::new())
         .boxed();
     let wallet = Wallet::new();
-    let behaviour = p2p::AppBehaviour::new(
+    let behaviour = p2p::AppNetworkBehavior::new(
         Blockchain::new(wallet),
         response_tx,
         init_tx.clone(),

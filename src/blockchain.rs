@@ -5,7 +5,7 @@ use log::{info, warn};
 use crate::block;
 use crate::block::Block;
 use crate::mempool::Mempool;
-// use crate::stake::Stake;
+use crate::stake::Stake;
 use crate::util::Util;
 use crate::transaction::*;
 // use crate::validator::Validator;
@@ -21,7 +21,7 @@ pub struct Blockchain {
     pub mempool: Mempool,
     pub wallet: Wallet,
     // pub accounts: Account,
-    // pub stakes: Stake,
+    pub stakes: Stake,
     // pub validators: Validator,
 }
 
@@ -33,7 +33,7 @@ impl Blockchain {
             mempool: Mempool::new(),
             wallet: wallet,
             // accounts: Account::new(),
-            // stakes: Stake::new(),
+            stakes: Stake::new(),
             // validators: Validator::new(),
         }
     }
@@ -81,30 +81,30 @@ impl Blockchain {
         }
     }
 
-    // pub fn mine_block_by_stake(&mut self) -> Option<Block> {
-    //     if self.mempool.transactions.len() < 2 {
-    //         // info!("Skip mining because no transaction in mempool");
-    //         return None;
-    //     }
+    pub fn mine_block_by_stake(&mut self) -> Option<Block> {
+        if self.mempool.transactions.len() < 2 {
+            info!("Skip mining because no transaction in mempool");
+            return None;
+        }
 
-    //     let balance = self
-    //         .stakes
-    //         .get_balance(&self.wallet.get_public_key())
-    //         .clone();
+        let balance = self
+            .stakes
+            .get_balance(&self.wallet.get_public_key())
+            .clone();
 
-    //     let difficulty = self.get_difficulty();
-    //     info!("Mining new block with difficulty {}", difficulty);
+        let difficulty = self.get_difficulty();
+        info!("Mining new block with difficulty {}", difficulty);
 
-    //     let timestamp = Utc::now().timestamp();
-    //     let previous_hash = self.chain.last().unwrap().hash.clone();
-    //     let address = self.wallet.get_public_key();
+        let timestamp = Utc::now().timestamp();
+        let previous_hash = self.chain.last().unwrap().hash.clone();
+        let address = self.wallet.get_public_key();
 
-    //     if Blockchain::is_staking_valid(balance, difficulty, timestamp, &previous_hash, &address) {
-    //         Some(self.create_block(timestamp))
-    //     } else {
-    //         None
-    //     }
-    // }
+        if Blockchain::is_staking_valid(balance, difficulty, timestamp, &previous_hash, &address) {
+            Some(self.create_block(timestamp))
+        } else {
+            None
+        }
+    }
 
     pub fn is_staking_valid(
         balance: u64,
@@ -121,7 +121,9 @@ impl Blockchain {
         // let sha256_hash = digest(data_str); 
         let sha256_hash = Util::hash(&data_str);
 
-        let decimal_staking_hash = BigUint::parse_bytes(&sha256_hash.as_bytes(), 16).expect("msg");
+        let decimal_staking_hash = BigUint::parse_bytes(
+            &sha256_hash.as_bytes(), 16
+        ).expect("msg");
 
         decimal_staking_hash <= big_balance_diff
     }
@@ -250,7 +252,7 @@ impl Blockchain {
         let genesis = Block::genesis();
         self.chain = vec![genesis];
         // self.accounts = Account::new();
-        // self.stakes = Stake::new();
+        self.stakes = Stake::new();
         // self.validators = Validator::new();
     }
 

@@ -28,7 +28,7 @@ mod block;
 mod blockchain;
 mod mempool;
 mod p2p;
-// mod stake;
+mod stake;
 mod transaction;
 mod util;
 // mod validator;
@@ -94,22 +94,22 @@ async fn main() {
         init_sender.send(true).expect("failed to send init event");
     });
 
-    // let mut planner = periodic::Planner::new();
-    // planner.start();
-
-    // // Run every second
-    // planner.add(
+    // // Run mining_planner n seconds periodically
+    // let seconds = 5;
+    // let mut mining_planner = periodic::Planner::new();
+    // mining_planner.start();
+    // mining_planner.add(
     //     move || pos_mining_sender.send(true).expect("failed to send mine event"),
-    //     periodic::Every::new(Duration::from_secs(1)),
+    //     periodic::Every::new(Duration::from_secs(seconds)),
     // );
 
     let mut cnt = 0;
     loop {
-        println!("\n### main loop [{cnt}], p_id: {peer_id_short}");
+        println!("\n\n### main loop [{cnt}], p_id: {peer_id_short}");
         cnt += 1;
         let evt = {
             select! {
-                // line = stdin.next_line() => Some(p2p::EventType::Input(line.expect("failed to get line").expect("can read line from stdin"))),
+                line = stdin.next_line() => Some(p2p::EventType::Input(line.expect("failed to get line").expect("can read line from stdin"))),
                 _init = init_rcv.recv() => {
                     println!("-- select: 'init' received");
                     Some(p2p::EventType::Init)
@@ -145,34 +145,34 @@ async fn main() {
                              .publish(p2p::CHAIN_TOPIC.clone(), json.as_bytes());
                     }
                 }
-                // p2p::EventType::Mining => {
-                //     println!(">> mining");
-                //     if let Some(block) = swarm.behaviour_mut().blockchain.mine_block_by_stake() {
-                //         swarm
-                //             .behaviour_mut()
-                //             .blockchain
-                //             .add_new_block(block.clone());
-                //         info!("broadcasting new block");
-                //         let json = serde_json::to_string(&block).expect("failed to jsonify request");
-                //         swarm
-                //             .behaviour_mut()
-                //             .floodsub
-                //             .publish(p2p::BLOCK_TOPIC.clone(), json.as_bytes());
-                //     };
-                // }
-                // p2p::EventType::Input(line) => match line.as_str() {
-                //     "ls p" => p2p::handle_print_peers(&swarm),
-                //     "create wallet" => Wallet::generate_wallet(),
-                //     "ls wallet" => p2p::handle_print_wallet(&mut swarm),
-                //     "ls c" => p2p::handle_print_chain(&swarm),
-                //     "ls bal" => p2p::handle_print_balance(&swarm),
-                //     "ls validator" => p2p::handle_print_validator(&swarm),
-                //     "ls stakes" => p2p::handle_print_stake(&swarm),
-                //     "ls mempool" => p2p::handle_print_mempool(&swarm),
-                //     cmd if cmd.starts_with("set wallet") => p2p::handle_set_wallet(cmd, &mut swarm),
-                //     cmd if cmd.starts_with("create txn") => p2p::handle_create_txn(cmd, &mut swarm),
-                //     _ => error!("unknown command"),
-                // },
+                p2p::EventType::Mining => {
+                    println!(">> mining");
+                    if let Some(block) 
+                            = swarm.behaviour_mut().blockchain.mine_block_by_stake() 
+                    {
+                        swarm.behaviour_mut().blockchain.add_new_block(block.clone());
+                        info!("broadcasting new block");
+                        let json = serde_json::to_string(&block)
+                                        .expect("failed to jsonify request");
+                        swarm.behaviour_mut()
+                            .floodsub
+                            .publish(p2p::BLOCK_TOPIC.clone(), json.as_bytes());
+                    };
+                }
+                p2p::EventType::Input(line) => match line.as_str() {
+                    "ls p" => p2p::handle_print_peers(&swarm),
+                    "mine" => pos_mining_sender.send(true).expect("failed to send mine event"),
+                    // "create wallet" => Wallet::generate_wallet(),
+                    // "ls wallet" => p2p::handle_print_wallet(&mut swarm),
+                    // "ls c" => p2p::handle_print_chain(&swarm),
+                    // "ls bal" => p2p::handle_print_balance(&swarm),
+                    // "ls validator" => p2p::handle_print_validator(&swarm),
+                    // "ls stakes" => p2p::handle_print_stake(&swarm),
+                    // "ls mempool" => p2p::handle_print_mempool(&swarm),
+                    // cmd if cmd.starts_with("set wallet") => p2p::handle_set_wallet(cmd, &mut swarm),
+                    // cmd if cmd.starts_with("create txn") => p2p::handle_create_txn(cmd, &mut swarm),
+                    _ => error!("unknown command"),
+                },
                 _ => todo!()
             }
         }

@@ -180,12 +180,13 @@ pub fn handle_print_chain(swarm: &Swarm<AppBehaviour>) {
     info!("{}", pretty_json);
 }
 
-// pub fn handle_print_balance(swarm: &Swarm<AppBehaviour>) {
-//     info!("Account Balance:");
-//     let pretty_json = serde_json::to_string_pretty(&swarm.behaviour().blockchain.accounts.balances)
-//         .expect("can jsonify blocks");
-//     info!("{}", pretty_json);
-// }
+pub fn handle_print_balance(swarm: &Swarm<AppBehaviour>) {
+    info!("Account Balance:");
+    let pretty_json = serde_json::to_string_pretty(
+        &swarm.behaviour().blockchain.accounts.balances
+    ).expect("can jsonify blocks");
+    info!("{}", pretty_json);
+}
 
 // pub fn handle_print_validator(swarm: &Swarm<AppBehaviour>) {
 //     info!("Validators: ");
@@ -216,15 +217,26 @@ pub fn handle_print_wallet(swarm: &mut Swarm<AppBehaviour>) {
     info!("Node wallet public key: {}", pub_key);
 }
 
-// pub fn handle_print_mempool(swarm: &Swarm<AppBehaviour>) {
-//     let pretty_json =
-//         serde_json::to_string_pretty(&swarm.behaviour().blockchain.mempool.transactions)
-//             .expect("can jsonify blocks");
-//     info!("{}", pretty_json);
-// }
+pub fn handle_print_mempool(swarm: &Swarm<AppBehaviour>) {
+    let pretty_json = serde_json::to_string_pretty(
+        &swarm.behaviour().blockchain.mempool.transactions
+    ).expect("can jsonify blocks");
+    info!("mempool: {}", pretty_json);
+}
+
+pub fn dummy_txn(cmd: &str, swarm: &mut Swarm<AppBehaviour>) {
+    info!("dummy_txn new txn 2306.. 10 5aed..");
+    handle_create_txn(
+        "new txn \
+            230681c76f00b412ccf7757a8449c448a04acd735e497a7612b66d8bfcb8e576 \
+            10 \
+            5aede624154386ca358af195e13a46981b917ee8279f30a67d7a211a3d3e7243", 
+        swarm
+    );
+}
 
 pub fn handle_create_txn(cmd: &str, swarm: &mut Swarm<AppBehaviour>) {
-    if let Some(data) = cmd.strip_prefix("create txn") {
+    if let Some(data) = cmd.strip_prefix("new txn") {
         let arg: Vec<&str> = data.split_whitespace().collect();
 
         let to = arg.get(0).expect("No receipient found").to_string();
@@ -250,7 +262,10 @@ pub fn handle_create_txn(cmd: &str, swarm: &mut Swarm<AppBehaviour>) {
         if amount + transaction::TRANSACTION_FEE
             > *behaviour.blockchain.get_balance(&wallet.get_public_key())
         {
-            warn!("Wallet has insufficient amount");
+            let bal = *behaviour.blockchain.get_balance(&wallet.get_public_key());
+            let addr = wallet.get_public_key();
+            warn!("Wallet has insufficient amount. 
+                   amount: {amount}, bal: {bal}, addr: {addr}");
             return;
         }
 

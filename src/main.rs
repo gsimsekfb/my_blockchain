@@ -23,7 +23,7 @@ use tokio::{
     time::sleep,
 };
 
-// mod account;
+mod account;
 mod block;
 mod blockchain;
 mod mempool;
@@ -52,6 +52,7 @@ async fn main() {
     pretty_env_logger::init();
 
     let peer_id_short = peer_id_short(&p2p::PEER_ID);
+    println!(""); println!("");
     info!("Peer Id Short: {:?}", peer_id_short);
     info!("Peer Id: {:?}", p2p::PEER_ID.to_string()); // ed25519 pub key
 
@@ -68,9 +69,16 @@ async fn main() {
         .multiplex(mplex::MplexConfig::new())
         .boxed();
 
-    let wallet = Wallet::new();
-    // let wallet = Wallet::get_wallet("5ae5066dd048ffb8f8628c44324e63c7b8782a026009a85a96935acb4921abbc5aede624154386ca358af195e13a46981b917ee8279f30a67d7a211a3d3e7243".to_string());
-    // let wallet = Wallet::get_wallet("27a23bf39574e86464f4e638241b3ef3dd223d9a30bd97810ff29c992e747e5a230681c76f00b412ccf7757a8449c448a04acd735e497a7612b66d8bfcb8e576".to_string());
+
+    let args: Vec<String> = std::env::args().collect();
+    let wallet;
+    if args.len() == 1 {
+        wallet = Wallet::get_wallet("5ae5066dd048ffb8f8628c44324e63c7b8782a026009a85a96935acb4921abbc5aede624154386ca358af195e13a46981b917ee8279f30a67d7a211a3d3e7243".to_string());
+    } else {
+        wallet = Wallet::get_wallet("27a23bf39574e86464f4e638241b3ef3dd223d9a30bd97810ff29c992e747e5a230681c76f00b412ccf7757a8449c448a04acd735e497a7612b66d8bfcb8e576".to_string());
+    }
+    wallet.print();
+
     let behaviour = p2p::AppBehaviour::new(
         Blockchain::new(wallet),
         response_sender,
@@ -165,12 +173,13 @@ async fn main() {
                     // "create wallet" => Wallet::generate_wallet(),
                     // "ls wallet" => p2p::handle_print_wallet(&mut swarm),
                     // "ls c" => p2p::handle_print_chain(&swarm),
-                    // "ls bal" => p2p::handle_print_balance(&swarm),
+                    "bal" => p2p::handle_print_balance(&swarm),
                     // "ls validator" => p2p::handle_print_validator(&swarm),
                     // "ls stakes" => p2p::handle_print_stake(&swarm),
-                    // "ls mempool" => p2p::handle_print_mempool(&swarm),
+                    "mp" => p2p::handle_print_mempool(&swarm),
                     // cmd if cmd.starts_with("set wallet") => p2p::handle_set_wallet(cmd, &mut swarm),
-                    // cmd if cmd.starts_with("create txn") => p2p::handle_create_txn(cmd, &mut swarm),
+                    cmd if cmd.starts_with("dd") => p2p::dummy_txn(cmd, &mut swarm),                    
+                    // cmd if cmd.starts_with("new txn") => p2p::handle_create_txn(cmd, &mut swarm),
                     _ => error!("unknown command"),
                 },
                 _ => todo!()

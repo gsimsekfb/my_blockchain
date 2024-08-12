@@ -1,4 +1,5 @@
 use ed25519_dalek::{Keypair, Signer};
+use log::info;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
@@ -29,6 +30,15 @@ impl Wallet {
         println!("Your Key Pair {:?}", hex::encode(keypair.to_bytes()));
     }
 
+    pub fn from(keypair: String) -> Wallet {
+        Self { key_pair: keypair }
+    }
+
+    pub fn print(&self) {
+        info!("Your Public Key: {}", self.get_public_key());
+        // info!("Your Secret Key: {}", self.get_public_key()); todo
+    }
+
     fn get_keypair(keypair_str: &String) -> Keypair {
         Keypair::from_bytes(&hex::decode(keypair_str).expect("Hex to Byte conversion"))
             .expect("Byte to Keypair conversion")
@@ -42,11 +52,11 @@ impl Wallet {
         hex::encode(Wallet::get_keypair(&self.key_pair).sign(data_hash.as_bytes()))
     }
 
-    pub fn get_public_key(&mut self) -> String {
+    pub fn get_public_key(&self) -> String {
         hex::encode(Wallet::get_keypair(&self.key_pair).public.as_bytes())
     }
 
-    pub fn get_balance<'a>(&mut self, blockchain: &'a mut Blockchain) -> &'a f64 {
+    pub fn get_balance<'a>(&self, blockchain: &'a mut Blockchain) -> &'a f64 {
         blockchain.get_balance(&self.get_public_key())
     }
 }

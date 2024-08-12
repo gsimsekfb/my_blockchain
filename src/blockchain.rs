@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use log::{info, warn};
 
-// use crate::account::Account;
+use crate::account::Account;
 use crate::block;
 use crate::block::Block;
 use crate::mempool::Mempool;
@@ -20,7 +20,7 @@ pub struct Blockchain {
     pub chain: Vec<Block>,
     pub mempool: Mempool,
     pub wallet: Wallet,
-    // pub accounts: Account,
+    pub accounts: Account,
     pub stakes: Stake,
     // pub validators: Validator,
 }
@@ -32,7 +32,7 @@ impl Blockchain {
             chain: vec![genesis],
             mempool: Mempool::new(),
             wallet: wallet,
-            // accounts: Account::new(),
+            accounts: Account::new(),
             stakes: Stake::new(),
             // validators: Validator::new(),
         }
@@ -251,7 +251,7 @@ impl Blockchain {
     pub fn reset_state(&mut self) {
         let genesis = Block::genesis();
         self.chain = vec![genesis];
-        // self.accounts = Account::new();
+        self.accounts = Account::new();
         self.stakes = Stake::new();
         // self.validators = Validator::new();
     }
@@ -297,7 +297,6 @@ impl Blockchain {
     }
 
     pub fn get_balance(&mut self, public_key: &String) -> &f64 {
-        // self.accounts.get_balance(public_key)
-        todo!()
+        self.accounts.get_balance(public_key)
     }
 }

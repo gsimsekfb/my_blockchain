@@ -1,6 +1,6 @@
 // use super::{App, Block};
 use crate::{
-    block::Block, blockchain::Blockchain, transaction, transaction::Transaction, wallet::Wallet,
+    block::Block, blockchain::Blockchain, transaction::{self, Transaction}, util::peer_id_short, wallet::Wallet
 };
 
 use libp2p::{
@@ -16,6 +16,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tokio::sync::mpsc;
 
+// // let base_64_encoded = "CAESQL6vdKQuznQosTrW7FWI9At+XX7EBf0BnZLhb6w+N+XSQSdfInl6c7U4NuxXJlhKcRBlBw9d0tj2dfBIVf6mcPA=";
+// // let encoded = base64::decode(base_64_encoded).unwrap();
+// // let keypair = Keypair::from_protobuf_encoding(&encoded).unwrap();
+// pub static KEYS: Lazy<identity::Keypair> = Lazy::new(
+//     || identity::Keypair::from_protobuf_encoding(
+//         &base64::decode("CAESQL6vdKQuznQosTrW7FWI9At+XX7EBf0BnZLhb6w+N+XSQSdfInl6c7U4NuxXJlhKcRBlBw9d0tj2dfBIVf6mcPA=").unwrap()
+//     ).unwrap()
+// );
+
 pub static KEYS: Lazy<identity::Keypair> = Lazy::new(identity::Keypair::generate_ed25519);
 pub static PEER_ID: Lazy<PeerId> = Lazy::new(|| PeerId::from(KEYS.public()));
 pub static CHAIN_TOPIC: Lazy<Topic> = Lazy::new(|| Topic::new("chains"));
@@ -25,7 +34,7 @@ pub static TXN_TOPIC: Lazy<Topic> = Lazy::new(|| Topic::new("transactions"));
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChainResponse {
     pub blocks: Vec<Block>,
-    pub txns: Vec<Transaction>,
+    pub mempool_txns: Vec<Transaction>,
     pub receiver: String,
 }
 
@@ -81,8 +90,8 @@ impl NetworkBehaviourEventProcess<FloodsubEvent> for AppBehaviour {
         if let FloodsubEvent::Message(msg) = event {
             if let Ok(resp) = serde_json::from_slice::<ChainResponse>(&msg.data) {
                 if resp.receiver == PEER_ID.to_string() {
-                    info!("Response from {}:", msg.source);
-                    // resp.blocks.iter().for_each(|r| info!("{:?}", r));
+                    info!("ChainResponse from peer *{}:", &msg.source.to_string()[52-4..]);
+                    // resp.blocks.iter().for_each(|r| info!("{:?}", r));cc
 
                     self.blockchain.replace_chain(&resp.blocks);
                     // self.blockchain.mempool.transactions = resp
@@ -91,17 +100,14 @@ impl NetworkBehaviourEventProcess<FloodsubEvent> for AppBehaviour {
                     //     .filter(|txn| Transaction::verify_txn(txn).is_ok())
                     //     .collect();
                 }
-            } else if let Ok(resp) = serde_json::from_slice::<ChainRequest>(&msg.data) {
-                info!(
-                    "sending local chain & mempool to {}",
-                    msg.source.to_string()
-                );
-                let peer_id = resp.from_peer_id;
-
-                if PEER_ID.to_string() == peer_id {
+            } else if let Ok(req) = serde_json::from_slice::<ChainRequest>(&msg.data) {
+                info!("sending local chain & mempool to {}", 
+                    peer_id_short(&msg.source));
+                // Verify this request is for me
+                if PEER_ID.to_string() == req.from_peer_id {
                     let json = serde_json::to_string(&ChainResponse {
                         blocks: self.blockchain.chain.clone(),
-                        txns: self.blockchain.mempool.transactions.clone(),
+                        mempool_txns: self.blockchain.mempool.transactions.clone(),
                         receiver: msg.source.to_string(),
                     })
                     .expect("can jsonify response");
@@ -152,13 +158,14 @@ impl NetworkBehaviourEventProcess<MdnsEvent> for AppBehaviour {
 }
 
 pub fn get_list_peers(swarm: &Swarm<AppBehaviour>) -> Vec<String> {
-    info!("Discovered Peers:");
     let nodes = swarm.behaviour().mdns.discovered_nodes();
     let mut unique_peers = HashSet::new();
     for peer in nodes {
         unique_peers.insert(peer);
     }
-    unique_peers.iter().map(|p| p.to_string()).collect()
+    let unique_peers = unique_peers.iter().map(|p| p.to_string()).collect();
+    info!("discovered peers: {:?}", &unique_peers);
+    unique_peers
 }
 
 pub fn handle_print_peers(swarm: &Swarm<AppBehaviour>) {

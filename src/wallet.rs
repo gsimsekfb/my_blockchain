@@ -17,6 +17,7 @@ impl Wallet {
         println!("Your Public Key {}", pub_key);
         let keypair = hex::encode(keypair.to_bytes());
         println!("Your Key Pair {}", keypair);
+
         Self { key_pair: keypair }
     }
 

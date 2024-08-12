@@ -6,13 +6,17 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Block {
-    pub id: usize,
-    pub hash: String,
-    pub previous_hash: String,
+    pub id: usize,      // height of the block in the blockchain
+    pub hash: String,   // sha256 hash taken from the content of the block
+    pub previous_hash: String, // hash of the previous block
     pub timestamp: i64,
     pub txn: Vec<Transaction>,
+        // ========= end of most essential properties
+    // public key of the node that is minting (finding a block)
     pub validator: String,
+    // encrypted hash after the validator signed on the block hash
     pub signature: String,
+    // number to use to keep the time interval between each block the same
     pub difficulty: u32,
 }
 

@@ -1,3 +1,9 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(non_camel_case_types)]
+#![allow(clippy::four_forward_slashes)]
+
 use libp2p::{
     core::upgrade,
     futures::StreamExt,
@@ -8,6 +14,7 @@ use libp2p::{
     Transport,
 };
 use log::{error, info, warn};
+use util::peer_id_short;
 use std::{process::exit, time::Duration};
 use tokio::{
     io::{stdin, AsyncBufReadExt, BufReader},
@@ -44,14 +51,16 @@ use crate::wallet::Wallet;
 async fn main() {
     pretty_env_logger::init();
 
-    info!("Peer Id: {}", p2p::PEER_ID.clone());
+    let peer_id_short = peer_id_short(&p2p::PEER_ID);
+    info!("Peer Id Short: {:?}", peer_id_short);
+    info!("Peer Id: {:?}", p2p::PEER_ID.to_string()); // ed25519 pub key
+
     let (response_sender, mut response_rcv) = mpsc::unbounded_channel();
     let (init_sender, mut init_rcv) = mpsc::unbounded_channel();
     let (pos_mining_sender, mut pos_mining_rcv) = mpsc::unbounded_channel::<bool>();
 
-    let auth_keys = Keypair::<X25519Spec>::new()
-        .into_authentic(&p2p::KEYS)
-        .expect("can create auth keys");
+    let auth_keys = Keypair::<X25519Spec>::new().into_authentic(&p2p::KEYS)
+        .expect("failed to create auth keys");
 
     let transp = TokioTcpConfig::new()
         .upgrade(upgrade::Version::V1)
@@ -66,56 +75,51 @@ async fn main() {
         Blockchain::new(wallet),
         response_sender,
         init_sender.clone(),
-    )
-    .await;
+    ).await;
 
     let mut swarm = SwarmBuilder::new(transp, behaviour, *p2p::PEER_ID)
-        .executor(Box::new(|fut| {
-            spawn(fut);
-        }))
+        .executor(Box::new(|fut| { spawn(fut); }))
         .build();
 
     let mut stdin = BufReader::new(stdin()).lines();
 
     Swarm::listen_on(
         &mut swarm,
-        "/ip4/0.0.0.0/tcp/0"
-            .parse()
-            .expect("can get a local socket"),
-    )
-    .expect("swarm can be started");
+        "/ip4/0.0.0.0/tcp/0".parse().expect("failed to get a local socket"),
+    ).expect("failed to listen on swarm");
 
     spawn(async move {
         sleep(Duration::from_secs(1)).await;
-        info!("sending init event");
-        init_sender.send(true).expect("can send init event");
+        info!("sending init event after 1 sec");
+        init_sender.send(true).expect("failed to send init event");
     });
-
 
     // let mut planner = periodic::Planner::new();
     // planner.start();
 
     // // Run every second
     // planner.add(
-    //     move || pos_mining_sender.send(true).expect("can send init event"),
+    //     move || pos_mining_sender.send(true).expect("failed to send mine event"),
     //     periodic::Every::new(Duration::from_secs(1)),
     // );
 
+    let mut cnt = 0;
     loop {
-        println!("--- aaa");
+        println!("\n### main loop [{cnt}], p_id: {peer_id_short}");
+        cnt += 1;
         let evt = {
             select! {
-                // line = stdin.next_line() => Some(p2p::EventType::Input(line.expect("can get line").expect("can read line from stdin"))),
+                // line = stdin.next_line() => Some(p2p::EventType::Input(line.expect("failed to get line").expect("can read line from stdin"))),
                 _init = init_rcv.recv() => {
-                    println!("--- l1");
+                    println!("-- select: 'init' received");
                     Some(p2p::EventType::Init)
                 }
                 _ = pos_mining_rcv.recv() => {
-                    println!("--- l2");
+                    println!("-- select: 'mine' received" );
                     Some(p2p::EventType::Mining)
                 },
                 _ = swarm.select_next_some() => {
-                    println!("--- l3");
+                    println!("-- select: next");
                     // info!("Unhandled Swarm Event: {:?}", event);
                     None
                 },
@@ -125,35 +129,31 @@ async fn main() {
         if let Some(event) = evt {
             match event {
                 p2p::EventType::Init => {
-                    println!("--- e init");
+                    println!("-- initing ..");
                     let peers = p2p::get_list_peers(&swarm);
-
                     info!("connected nodes: {}", peers.len());
                     if !peers.is_empty() {
                         let req = p2p::ChainRequest {
-                            from_peer_id: peers
-                                .iter()
-                                .last()
-                                .expect("at least one peer")
+                            from_peer_id: peers.iter().last()
+                                .expect("failed to get at least one peer")
                                 .to_string(),
                         };
-
-                        let json = serde_json::to_string(&req).expect("can jsonify request");
-                        swarm
-                            .behaviour_mut()
-                            .floodsub
-                            .publish(p2p::CHAIN_TOPIC.clone(), json.as_bytes());
+                        let json = serde_json::to_string(&req).expect("failed to jsonify request");
+                        info!("ChainRequest to peer *{}", &req.from_peer_id[52-4..]);
+                        swarm.behaviour_mut()
+                             .floodsub
+                             .publish(p2p::CHAIN_TOPIC.clone(), json.as_bytes());
                     }
                 }
                 // p2p::EventType::Mining => {
-                //     println!("--- e mining");
+                //     println!(">> mining");
                 //     if let Some(block) = swarm.behaviour_mut().blockchain.mine_block_by_stake() {
                 //         swarm
                 //             .behaviour_mut()
                 //             .blockchain
                 //             .add_new_block(block.clone());
                 //         info!("broadcasting new block");
-                //         let json = serde_json::to_string(&block).expect("can jsonify request");
+                //         let json = serde_json::to_string(&block).expect("failed to jsonify request");
                 //         swarm
                 //             .behaviour_mut()
                 //             .floodsub

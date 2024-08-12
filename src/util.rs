@@ -1,8 +1,15 @@
 use ed25519_dalek::{ed25519::Error, PublicKey, Signature, Verifier};
 use hex::FromHexError;
+use libp2p::PeerId;
 use log::warn;
 // use sha256::digest_bytes;
 use uuid::Uuid;
+
+
+pub fn peer_id_short(peer_id: &PeerId) -> String {
+    let peer_id = peer_id.to_string();
+    peer_id[..4].to_string() + ".." + &peer_id[peer_id.len()-4..]
+}
 
 pub struct Util;
 
